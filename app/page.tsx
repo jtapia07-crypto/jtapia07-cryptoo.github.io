@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const BANK = (process.env.NEXT_PUBLIC_BANK_INFO ?? "Configura NEXT_PUBLIC_BANK_INFO").split("|");
 const CONTACT = process.env.NEXT_PUBLIC_CONTACT ?? "";
-const MAX = 10; // debe coincidir con MAX_PER_ORDER del backend
-const PACKS: [number, number][] = [[5, 8000], [3, 5000], [1, 2000]]; // solo vista previa: el precio real lo fija el servidor
+const MAX = 10;
+const PACKS: [number, number][] = [[5, 8000], [3, 5000], [1, 2000]];
 const price = (n: number) => PACKS.reduce((t, [s, p]) => { const k = Math.floor(n / s); n -= k * s; return t + k * p; }, 0);
 const clp = (n: number) => n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
@@ -52,7 +52,7 @@ export default function Page() {
     try {
       const [t, s] = await Promise.all([api<Taken>("/api/numbers"), api<Stats>("/api/stats")]);
       setTaken(t); setStats(s);
-    } catch { /* se reintenta en el siguiente ciclo */ }
+    } catch { /* reintento silencioso */ }
   }, []);
   useEffect(() => { load(); const id = setInterval(load, 10000); return () => clearInterval(id); }, [load]);
 
@@ -100,20 +100,20 @@ export default function Page() {
             <div className="h-full bg-gradient-to-r from-violet-500 to-[#39ff88] transition-all" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-2 text-sm text-violet-200">
-            {stats ? `${stats.sold} vendidos · ${stats.reserved} reservados de ${stats.total} · ${clp(stats.raised)} recaudados` : "Cargando…"}
+            {stats ? `${stats.sold} vendidos · ${stats.reserved} reservados de ${stats.total} · ${clp(stats.raised)} recaudados` : "Cargando estadísticas..."}
           </p>
         </section>
 
         {done ? (
-          <section className="space-y-3 rounded-2xl border border-[#39ff88]/60 bg-white/5 p-6">
+          <section className="space-y-3 rounded-2xl border border-[#39ff88]/60 bg-white/5 p-6 backdrop-blur">
             <h2 className="text-2xl font-bold text-[#39ff88]">✅ Reserva #{done.order_id} creada</h2>
             <p>Números: <b>{done.numbers.join(", ")}</b> · Total a transferir: <b>{clp(done.amount)}</b></p>
-            <div className="rounded-xl bg-black/30 p-4 text-sm">{BANK.map((l) => <p key={l}>{l}</p>)}</div>
+            <div className="rounded-xl bg-black/30 p-4 text-sm space-y-1">{BANK.map((l) => <p key={l}>{l}</p>)}</div>
             <p className="text-sm text-violet-200">
               Tus números quedan reservados por {done.hold_minutes >= 60 ? `${done.hold_minutes / 60} horas` : `${done.hold_minutes} minutos`}.
               Cuando validemos tu transferencia recibirás el comprobante con QR por correo{CONTACT ? `. Envía tu comprobante de pago al WhatsApp ${CONTACT} indicando la reserva #${done.order_id}` : ""}.
             </p>
-            <button onClick={() => setDone(null)} className="rounded-xl border border-white/20 px-4 py-2 hover:border-[#39ff88]">Hacer otra compra</button>
+            <button onClick={() => setDone(null)} className="rounded-xl border border-white/20 px-4 py-2 hover:border-[#39ff88] transition-colors">Hacer otra compra</button>
           </section>
         ) : (
           <>
@@ -121,7 +121,7 @@ export default function Page() {
               <h2 className="mb-3 text-xl font-semibold">1 · Elige tus números</h2>
               <div className="mb-3 flex flex-wrap gap-2 text-sm">
                 {[[1, "1 · $2.000"], [3, "+3 · pack $5.000"], [5, "+5 · pack $8.000 ★"]].map(([k, l]) => (
-                  <button key={k} onClick={() => addRandom(k as number)} className="rounded-xl border border-white/20 px-3 py-2 hover:border-[#39ff88]">{l} al azar</button>
+                  <button key={k} onClick={() => addRandom(k as number)} className="rounded-xl border border-white/20 px-3 py-2 hover:border-[#39ff88] transition-colors">{l} al azar</button>
                 ))}
                 <button onClick={() => setSel([])} className="rounded-xl px-3 py-2 text-violet-300 hover:text-white">Limpiar</button>
               </div>
@@ -131,7 +131,7 @@ export default function Page() {
                   return (
                     <button key={n} disabled={sold || res} onClick={() => toggle(n)} aria-pressed={on}
                       title={sold ? "Vendido" : res ? "Reservado" : "Disponible"}
-                      className={`rounded-lg border py-2.5 text-sm ${on ? "border-[#39ff88] bg-[#39ff88] font-bold text-black" : sold ? "cursor-not-allowed border-white/5 text-white/20 line-through" : res ? "cursor-not-allowed border-violet-500/40 text-violet-400/50" : "border-white/15 hover:border-[#39ff88]"}`}>
+                      className={`rounded-lg border py-2.5 text-sm transition-all ${on ? "border-[#39ff88] bg-[#39ff88] font-bold text-black" : sold ? "cursor-not-allowed border-white/5 text-white/20 line-through bg-black/20" : res ? "cursor-not-allowed border-violet-500/40 text-violet-400/50 bg-violet-950/20" : "border-white/15 hover:border-[#39ff88] hover:bg-white/10"}`}>
                       {n}
                     </button>
                   );
@@ -151,7 +151,7 @@ export default function Page() {
               </div>
               <p className="text-xs text-violet-300">Usamos tus datos solo para gestionar la rifa y contactar al ganador.</p>
               {err && <p role="alert" className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-200">{err}</p>}
-              <button disabled={busy || !sel.length} className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-[#39ff88] py-3 font-bold text-black disabled:opacity-40">
+              <button disabled={busy || !sel.length} className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-[#39ff88] py-3 font-bold text-black disabled:opacity-40 hover:opacity-90 transition-opacity">
                 {busy ? "Reservando…" : `Reservar ${sel.length || ""} número${sel.length === 1 ? "" : "s"} · ${clp(price(sel.length))}`}
               </button>
             </form>
